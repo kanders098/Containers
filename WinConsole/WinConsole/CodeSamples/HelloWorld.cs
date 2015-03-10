@@ -15,7 +15,7 @@ namespace WinConsole.CodeSamples
                     {
                         Name = "Is Process Running",
                         Value = new TaskStateView() { Name = "Process Current State", Task = this }, 
-                        ExpectedValue = new AtomicValue() { Name = "Task Running", Value = TaskState.Running }
+                        ExpectedValue = new AtomicValue() { Name = "Task Running", Value = RunState.Running }
                     }, 
                     FunctionText = "print \"Hello World!\""  
                 }
@@ -28,7 +28,7 @@ namespace WinConsole.CodeSamples
                     Name = "Task Current State",
                     Task = Tasks[0]
                 },
-                ExpectedValue = new AtomicValue() { Name = "Task Done", Value = TaskState.Done }
+                ExpectedValue = new AtomicValue() { Name = "Task Done", Value = RunState.Done }
             };
         }
     }

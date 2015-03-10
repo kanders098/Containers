@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 
 using Atomic.Core;
 using Atomic.Loader;
@@ -10,6 +11,7 @@ using Atomic.Loader.Xml;
 
 namespace WinConsole
 {
+    /*
     public class ExportContainer : BaseContainer
     {
         public DirectoryInfo DirectoryPath { get; set; }
@@ -38,29 +40,121 @@ namespace WinConsole
             }
         }
 
-        public override void ExecuteFunction(string functionText)
+        public override string ExecuteFunction(string functionText, IValue resultValue)
         {
+            return "";
+        }
+
+        public override void HandleError(string errorText)
+        {
+            throw new NotImplementedException();
         }
     }
+    */
 
-    public class ConsoleContainer : RunContainer
+    public class ConsoleContainer : RunContainer, IDataAccessContainer
     {
-        public override void ExecuteFunction(string functionText)
+        public override string ExecuteTask(ITask task)
         {
-            functionText = functionText.Trim();
+            IDictionary<string, object> response = new Dictionary<string, object>();
+            string functionText = task.FunctionText.Trim();
 
-            int pos = functionText.IndexOf(" ");
-            string cmd = functionText.Substring(0, pos);
-            string cmdParam = functionText.Substring(pos + 1);
+            string cmd = "";
+            string text = "";
+            string valueName = "";
+            ParseFunctionText(functionText, out cmd, out text, out valueName);
+            text = ReplaceValues(task, text);
+            AtomicMessage message = new AtomicMessage();
 
-            if (cmd == "print")
+            switch (cmd)
             {
-                Console.WriteLine(cmdParam.Substring(1, cmdParam.Length - 2));
+                case "input":
+                    message.Parameters = new IParameter[] 
+                    {
+                        new ParameterValue() { Name = "promptText", Value = text },
+                        new ParameterValue() { Name = "inputText", InputParameter = false }
+                    };
+
+                    Read(message);
+                    task.GetValue(valueName).Value = message.GetParameter("inputText").Value;
+                    break;
+                case "print":
+                    message.Parameters = new IParameter[] 
+                    {
+                        new ParameterValue() { Name = "outputText", Value = text }
+                    };
+
+                    Write(message);
+                    break;
+                default:
+                    response["error"] = "unknown command";
+                    response["function"] = functionText;
+                    break;
             }
-            else
+
+            return FormatResponse(response);
+        }
+
+        private void ParseFunctionText(string functionText, out string cmd, out string text, out string valueName)
+        {
+            Regex ex = new Regex("(\\\")+");
+            string[] tokens = ex.Split(functionText);
+            cmd = tokens[0].ToLower().Trim();
+            valueName = "";
+            int lastToken = tokens.Length - 1;
+
+            if (cmd == "input")
             {
-                Console.WriteLine("Unknown command: {0}", cmd);
+                if (tokens[lastToken].StartsWith(","))
+                {
+                    valueName = tokens[lastToken].Substring(1).Trim();
+                }
             }
+
+            text = String.Join(" ", tokens, 2, lastToken - 3);
+        }
+
+        private string ReplaceValues(ITask task, string text)
+        {
+            MatchCollection matchCol = new Regex(@"{[$|\w|\s]+}").Matches(text);
+            StringBuilder buffer = new StringBuilder(text);
+            string paramName = "";
+            IValue paramValue = Undefined.Value;
+
+            foreach (Match valueMatch in matchCol)
+            {
+                paramName = valueMatch.Value;
+                if (paramName[1] != '$') continue;
+                paramName = paramName.Substring(2, paramName.Length - 3);
+                paramValue = task.GetValue(paramName);
+
+                if (paramValue != Undefined.Value)
+                {
+                    buffer.Replace(valueMatch.Value, paramValue.Value.ToString());
+                }
+            }
+
+            return buffer.ToString();
+        }
+
+        public override void HandleError(string errorText)
+        {
+            if (errorText.Length == 0) return;
+            Console.WriteLine(errorText);
+        }
+
+        public void Read(IMessage message)
+        {
+            string prompt = message.GetParameter("promptText").Value.ToString();
+            Console.Write(prompt + " ");
+
+            IParameter outParam = message.GetParameter("inputText");
+            outParam.Value = Console.ReadLine();
+        }
+
+        public void Write(IMessage message)
+        {
+            Console.WriteLine(message.GetParameter("outputText").Value);
         }
     }
 
@@ -68,22 +162,68 @@ namespace WinConsole
     {
         static void Main(string[] args)
         {
-            IProcess p = new WinConsole.CodeSamples.HelloWorld();
-            IContainer container = new ExportContainer()
+            IProcess testProcess = new WinConsole.CodeSamples.EchoName();
+/*            IContainer container = new ExportContainer()
             {
                 DirectoryPath = new DirectoryInfo("../../Samples"),
                 Converter = new PlainTextConverter()
             };
 
-            container.AddProcess(p);
-            container.Run();
+            foreach (ITask task in p.Tasks)
+            {
+                container.AddTask(task);
+            }
 
-            IContainer runContainer = new ConsoleContainer();
-            runContainer.DebugMode = true;
-            runContainer.DebugStream = Console.OpenStandardOutput();
-            runContainer.AddProcess(p);
+            while (container.TaskList.Length > 0)
+            {
+                container.Run();
+            }
+            */
+            List<IProcess> processList = new List<IProcess>();
+            processList.Add(testProcess);
 
-            //runContainer.Run();
+            List<IContainer> containerList = new List<IContainer>();
+            containerList.Add(new ConsoleContainer() 
+            {
+                DebugMode = false,
+                DebugStream = Console.OpenStandardOutput()
+            });
+
+            foreach (ITask task in testProcess.Tasks)
+            {
+                containerList[0].AddTask(task);
+            }
+
+            List<IProcess> activeList = new List<IProcess>();
+
+            while (processList.Count() > 0)
+            {
+                foreach (IProcess p in processList) 
+                {
+                    if (p.CurrentState != RunState.Running)
+                    {
+                        p.Update();
+                        continue;
+                    }
+
+                    foreach (IContainer c in containerList)
+                    {
+                        c.Run();
+                    }
+
+                    if (p.DoneCondition.Met)
+                    {
+                        p.Update();
+                    }
+                }
+
+                activeList.Clear();
+                activeList.AddRange(processList.Where(x => x.CurrentState != RunState.Done));
+
+                processList.Clear();
+                processList.AddRange(activeList);
+            }
+
 
             /*
             // open model file
@@ -216,7 +356,7 @@ namespace WinConsole
                 p.Run();
                 p.Update();
 
-                done = (p.CurrentState == Atomic.Core.TaskState.Done);
+                done = (p.CurrentState == Atomic.Core.RunState.Done);
             }
         }
         // * */
