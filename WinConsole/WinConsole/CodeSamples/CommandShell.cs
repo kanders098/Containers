@@ -23,7 +23,7 @@ namespace WinConsole.CodeSamples
             List<ITask> taskList = new List<ITask>();
             ITask task = Undefined.Task;
 
-            task = new AtomicTask() 
+            task = new GeneralTask() 
             { 
                 Name = "Get Command", 
                 StartCondition = new RuleCondition() 
@@ -57,7 +57,7 @@ namespace WinConsole.CodeSamples
             };
             taskList.Add(task);
 
-            task = new AtomicTask()
+            task = new GeneralTask()
             {
                 Name = "Open Event Task",
                 FunctionText = "open file",
@@ -67,13 +67,13 @@ namespace WinConsole.CodeSamples
                 },
                 StartCondition = new ValueCondition()
                 {
-                    Value = taskList[1].GetValue("commandName"),
+                    Value = taskList[0].GetValue("commandName"),
                     ExpectedValue = new AtomicValue() { Value = "open" }
                 }
             };
             taskList.Add(task);
 
-            task = new AtomicTask()
+            task = new GeneralTask()
             {
                 Name = "Close Event Task",
                 FunctionText = "close file",

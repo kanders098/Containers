@@ -15,7 +15,7 @@ namespace WinConsole.CodeSamples
             List<ITask> taskList = new List<ITask>();
             ITask task = null;
 
-            task = new AtomicTask()
+            task = new GeneralTask()
             {
                 Name = "Get Name",
                 FunctionText = "input \"Hi!  What's your name?\", name",
@@ -27,7 +27,7 @@ namespace WinConsole.CodeSamples
             };
             taskList.Add(task);
 
-            task = new AtomicTask()
+            task = new GeneralTask()
             {
                 Name = "Display Greeting",
                 FunctionText = "print \"It's good to meet you {$name}.\"",
@@ -43,7 +43,5 @@ namespace WinConsole.CodeSamples
 
             DoneCondition = AtomicProcess.TaskStateCondition(Tasks[1], RunState.Done);
         }
-
-        
     }
 }

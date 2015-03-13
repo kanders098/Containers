@@ -8,7 +8,7 @@ namespace WinConsole.CodeSamples
         {
             Name = "Hello World";
             Tasks = new ITask[] {
-                new AtomicTask() 
+                new GeneralTask() 
                 { 
                     Name = "Display Greeting", 
                     StartCondition = new ValueCondition()

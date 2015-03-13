@@ -42,11 +42,16 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CodeSamples\CommandShell.cs" />
+    <Compile Include="CodeSamples\CommandShell\Step01.cs" />
     <Compile Include="CodeSamples\EchoName.cs" />
     <Compile Include="CodeSamples\FileProcessModel.cs" />
     <Compile Include="CodeSamples\HelloWorld.cs" />
     <Compile Include="CodeSamples\SimpleModel.cs" />
+    <Compile Include="Containers\ConsoleContainer.cs" />
+    <Compile Include="Containers\DataConnectionContainer.cs" />
+    <Compile Include="Containers\FileAccessContainer.cs" />
     <Compile Include="Containers\FilesystemContainer.cs" />
+    <Compile Include="Containers\NetConnectionContainer.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
