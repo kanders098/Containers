@@ -49,8 +49,10 @@
     <Compile Include="CodeSamples\SimpleModel.cs" />
     <Compile Include="Containers\ConsoleContainer.cs" />
     <Compile Include="Containers\DataConnectionContainer.cs" />
+    <Compile Include="Containers\DebugContainer.cs" />
     <Compile Include="Containers\FileAccessContainer.cs" />
     <Compile Include="Containers\FilesystemContainer.cs" />
+    <Compile Include="Containers\GeneralContainer.cs" />
     <Compile Include="Containers\NetConnectionContainer.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

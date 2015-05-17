@@ -9,6 +9,7 @@ using System.Text.RegularExpressions;
 
 namespace WinConsole.CodeSamples
 {
+    /*
     public class CommandShell : AtomicProcess
     {
         public CommandShell()
@@ -123,4 +124,5 @@ namespace WinConsole.CodeSamples
             }
         }
     }
+*/
 }

@@ -57,23 +57,28 @@ namespace WinConsole
 
     class Program
     {
+        private static IList<IContainer> _containers = new List<IContainer>();
         static void Main(string[] args)
         {
-            List<IContainer> containerList = new List<IContainer>();
-            IContainer container = new ConsoleContainer()
-            {
-                DebugMode = true,
-                DebugStream = Console.OpenStandardOutput()
-            };
+            // define the containers
+            _containers.Add(new ConsoleContainer());
+            _containers.Add(new GeneralContainer());
 
-            containerList.Add(container);
-
+            // create the process list
             List<IProcess> processList = new List<IProcess>();
-
             IProcess testProcess = new WinConsole.CodeSamples.CommandShellStep03();
-            testProcess.SetContainer(typeof(GeneralTask), container);
-
             processList.Add(testProcess);
+            
+            // add the debug container
+            UniversalContainer debugContainer = new DebugInfoContainer();
+            debugContainer.AddWatch(testProcess);
+
+            foreach (ITask task in testProcess.Tasks)
+            {
+                debugContainer.AddWatch(task);
+            }
+
+            _containers.Add(debugContainer);
 
             /*           
              * IContainer container = new ExportContainer()
@@ -92,33 +97,21 @@ namespace WinConsole
                             container.Run();
                         }
                         */
-
+            /*
             foreach (ITask task in testProcess.Tasks)
             {
                 IContainer c = testProcess.GetContainer(task.GetType());
                 c.AddTask(task);
             }
+            */
 
-            List<IProcess> activeList = new List<IProcess>();
+            // initialize the loop variables
+            int step = 0;
 
+            // repeat until no processes are running
             while (processList.Count() > 0)
             {
-                foreach (IContainer c in containerList)
-                {
-                    c.Run();
-                    if (c.DebugMode) Console.ReadKey();
-                }
-
-                foreach (IProcess p in processList)
-                {
-                    p.Update();
-                }
-
-                activeList.Clear();
-                activeList.AddRange(processList.Where(x => x.CurrentState != RunState.Done));
-
-                processList.Clear();
-                processList.AddRange(activeList);
+                DoStep(processList, ++step);
             }
 
 
@@ -181,6 +174,68 @@ namespace WinConsole
 
             Console.WriteLine("\nPress any key to continue.");
             Console.ReadKey();
+        }
+
+        static public void DoStep(List<IProcess> processList, int step)
+        {
+            List<IProcess> activeList = new List<IProcess>();
+            Console.WriteLine("Current Step: {0}", (step));
+
+            // clear modified flag from each process
+            foreach (IProcess p in processList)
+            {
+                if (p.Locked)
+                {
+                    p.ResetValues();
+                }
+                else
+                {
+                    p.Locked = true;
+
+                    // add the process tasks to the containers in the set
+                    foreach (IContainer container in _containers)
+                    {
+                        container.Add(p);
+                    }
+                }
+
+                Console.WriteLine("----------------------------------------------");
+            }
+
+            // run the tasks assigned to the container
+            foreach (IContainer c in _containers)
+            {
+                c.Run();
+            }
+
+            // update each process, setting state and output values
+            foreach (IProcess p in processList)
+            {
+                p.Update();
+            }
+
+            // reset the active process list
+            activeList.Clear();
+
+            // remove tasks from containers from done processes
+            foreach (IProcess p in processList)
+            {
+                if (p.CurrentState == RunState.Done)
+                {
+                    foreach (IContainer c in _containers)
+                    {
+                        c.Remove(p);
+                    }
+                }
+                else
+                {
+                    activeList.Add(p);
+                }
+            }
+
+            // reset the process list
+            processList.Clear();
+            processList.AddRange(activeList);
         }
 
         /*
@@ -279,5 +334,65 @@ namespace WinConsole
         }
     }
 
+    class DebugInfoContainer : UniversalContainer
+    {
+        static public void DisplayProcessInfo(IRunnable process)
+        {
+            IProcess p = (IProcess)process;
 
+            Console.WriteLine("----------------------------------------------");
+            Console.WriteLine("---- DEBUG INFO FOR PROCESS {0} ", p.Name);
+            Console.WriteLine("----------------------------------------------");
+            Console.WriteLine("State: {0}\t\tDone? {1}", p.CurrentState, p.DoneCondition.Met);
+            Console.WriteLine("Start? {0}\t\tStop? {1}", p.StartEvent.Met, p.StopEvent.Met);
+            Console.WriteLine("Modified? {0}\t\t", p.Modified);
+
+            foreach (IValue v in p.Inputs)
+            {
+                DisplayValueInfo("Input", v);
+            }
+
+            foreach (IValue v in p.Outputs)
+            {
+                DisplayValueInfo("Output", v);
+            }
+
+            Console.WriteLine("----------------------------------------------");
+        }
+
+        private static void DisplayValueInfo(string valueType, IValue value)
+        {
+            Console.WriteLine("{0} <{1}> = \"{2}\"{3}", valueType, value.Name, value.Value, (value.Modified) ? "*" : "");
+        }
+
+        static public void DisplayTaskInfo(IRunnable task)
+        {
+            ITask t = (ITask)task;
+
+            Console.WriteLine("----------------------------------------------");
+            Console.WriteLine("---- DEBUG INFO FOR TASK {0} ", t.Name);
+            Console.WriteLine("----------------------------------------------");
+            Console.WriteLine("State: {0}\t\t", t.CurrentState);
+            Console.WriteLine("Start? {0}\t\tStop? {1}", t.StartCondition.Met, t.StopCondition.Met);
+            Console.WriteLine("Modified? {0}\t\t", t.Modified);
+
+            foreach (IValue v in t.Inputs)
+            {
+                DisplayValueInfo("Input", v);
+            }
+
+            foreach (IValue v in t.Outputs)
+            {
+                DisplayValueInfo("Output", v);
+            }
+
+            Console.WriteLine("----------------------------------------------");
+        }
+
+        public DebugInfoContainer() 
+        {
+            ProcessRunFunction = DisplayProcessInfo;
+            TaskRunFunction = DisplayTaskInfo;
+        }
+    }
 }

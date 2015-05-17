@@ -2,6 +2,7 @@
 
 namespace WinConsole.CodeSamples
 {
+    /*
     public class HelloWorld : AtomicProcess
     {
         public HelloWorld()
@@ -32,4 +33,5 @@ namespace WinConsole.CodeSamples
             };
         }
     }
+     * */
 }

@@ -8,6 +8,7 @@ using Atomic.Core;
 
 namespace WinConsole.CodeSamples
 {
+    /*
     public class EchoName : AtomicProcess
     {
         public EchoName()
@@ -44,4 +45,5 @@ namespace WinConsole.CodeSamples
             DoneCondition = AtomicProcess.TaskStateCondition(Tasks[1], RunState.Done);
         }
     }
+     * */
 }

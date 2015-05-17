@@ -15,17 +15,20 @@ namespace WinConsole.CodeSamples
             List<ITask> taskList = new List<ITask>();
             ITask task = null;
 
-            task = new GeneralTask()
+            task = new PresentationTask()
             {
                 Name = "DisplayBanner",
-                FunctionText = "print \"Atomic Platform [Version 1.0]\"",
-                StartCondition = AtomicProcess.TaskStateCondition(this, RunState.Running)
+                RunFunction = new AtomicFunction() 
+                { 
+                    FunctionText = "write \"Atomic Platform [Version 1.0]\"" 
+                },
+                StartCondition = AtomicProcess.AtStateCondition(this, RunState.Running)
             };
             taskList.Add(task);
 
             Tasks = taskList.ToArray();
 
-            DoneCondition = AtomicProcess.TaskStateCondition(task, RunState.Done);
+            DoneCondition = AtomicProcess.AtStateCondition(task, RunState.Done);
         }
     }
 
@@ -38,32 +41,56 @@ namespace WinConsole.CodeSamples
 
             ITask task = null;
             task = GetTask("DisplayBanner");
-            task.StartCondition = AtomicProcess.TaskStateCondition(this, RunState.Starting);
+            task.StartCondition = AtomicProcess.AtStateCondition(this, RunState.Starting);
 
-            task = new GeneralTask()
+            task = new PresentationTask()
             {
                 Name = "Get Command",
-                FunctionText = "input \">\", cmd",
-                StartCondition = AtomicProcess.TaskStateCondition(this, RunState.Running),
-                Values = new IValue[] 
+                RunFunction = new AtomicFunction() 
+                {
+                    FunctionText = "read \">\" as cmd"
+                },
+                Outputs = new IValue[] 
                 {
                     new AtomicValue() { Name = "cmd", Value = "" }
                 }
             };
+
+            task.StartCondition = new RuleCondition() 
+            {
+                Conditions = new ICondition[] 
+                {
+                    AtomicRunnable.AtStateCondition(this, RunState.Running),
+                    new ValueCondition() 
+                    { 
+                        Value = task.GetOutput("cmd"), 
+                        ExpectedValue = new AtomicValue() { Value = "" }, 
+                        MetFunction = ValueCondition.EqualsFunction 
+                    }
+                }, 
+                MetFunction = RuleCondition.AllConditionsMet
+            };
+
             taskList.Add(task);
 
-            task = new GeneralTask()
+            task = new PresentationTask()
             {
                 Name = "Display Unknown Command Message",
-                FunctionText = "print \"Unknown command: {$cmd}.\"",
-                StartCondition = AtomicProcess.TaskStateCondition(taskList[1], RunState.Done),
-                Values = new IValue[] { taskList[1].GetValue("cmd") }
+                RunFunction = new AtomicFunction()
+                {
+                    FunctionText = "write \"Unknown command: $[cmd].\""
+                },
+                StartCondition = AtomicProcess.AtStateCondition(taskList[1], RunState.Done),
+                Inputs = new IValueView[] 
+                { 
+                    new TextView() { SourceValue = taskList[1].GetOutput("cmd") }
+                }
             };
             taskList.Add(task);
 
             Tasks = taskList.ToArray();
 
-            DoneCondition = AtomicProcess.TaskStateCondition(Tasks[2], RunState.Done);
+            DoneCondition = AtomicProcess.AtStateCondition(Tasks[2], RunState.Done);
         }
     }
 
@@ -71,8 +98,11 @@ namespace WinConsole.CodeSamples
     {
         public CommandShellStep03()
         {
-            List<IValue> valueList = new List<IValue>();
-            valueList.AddRange(Values);
+            // move the command output to the process level
+            Outputs = new IValue[] 
+            {
+                new AtomicValue() { Name = "cmd", Value = "" }
+            };
 
             List<ITask> taskList = new List<ITask>();
             taskList.AddRange(Tasks);
@@ -84,10 +114,10 @@ namespace WinConsole.CodeSamples
             {
                 Conditions = new ICondition[] 
                 {
-                    AtomicProcess.TaskStateCondition(this, RunState.Running),
+                    AtomicProcess.AtStateCondition(this, RunState.Running),
                     new ValueCondition() 
                     {
-                        Value = task.Values[0], 
+                        Value = this.GetOutput("cmd"), 
                         ExpectedValue = new AtomicValue() { Value = "" }, 
                         MetFunction = ValueCondition.EqualsFunction
                     }
@@ -96,9 +126,12 @@ namespace WinConsole.CodeSamples
             };
             task.StopCondition = new ValueCondition()
             {
-                Value = task.GetValue("cmd"),
+                Value = this.GetOutput("cmd"),
                 ExpectedValue = new AtomicValue() { Value = "" },
                 MetFunction = ValueCondition.NotEqualsFunction
+            };
+            task.Outputs = new IValue[] {
+                this.GetOutput("cmd")
             };
 
             ITask unknownTask = GetTask("Display Unknown Command Message");
@@ -106,25 +139,32 @@ namespace WinConsole.CodeSamples
             {
                 Conditions = new ICondition[] 
                 { 
-                    AtomicProcess.TaskStateCondition(GetTask("Get Command"), RunState.Done),
+                    AtomicProcess.AtStateCondition(GetTask("Get Command"), RunState.Done),
                     new ValueCondition() 
                     {
-                        Value = GetTask("Get Command").GetValue("cmd"),
+                        Value = GetInput("cmd"),
                         ExpectedValue = new AtomicValue() { Value = "quit" },
                         MetFunction = ValueCondition.NotEqualsFunction
                     }
                 }, 
-                MetFunction = RuleCondition.AllConditionsMet
+                MetFunction = RuleCondition.AllConditionsMet 
+            };
+            unknownTask.Inputs = new IValueView[] 
+            {
+                new TextView() { SourceValue = this.GetOutput("cmd") }
             };
 
             task = new GeneralTask()
             {
                 Name = "Clear Command",
-                FunctionText = "let cmd = \"\"",
-                StartCondition = AtomicProcess.TaskStateCondition(unknownTask, RunState.Done),
-                Values = new IValue[] 
+                RunFunction = new AtomicFunction() 
+                {
+                    FunctionText = "let cmd = \"\""
+                },
+                StartCondition = AtomicProcess.AtStateCondition(unknownTask, RunState.Done),
+                Outputs = new IValue[] 
                 { 
-                    GetTask("Get Command").GetValue("cmd")
+                    this.GetOutput("cmd")
                 }
             };
             taskList.Add(task);
@@ -133,27 +173,54 @@ namespace WinConsole.CodeSamples
 
             DoneCondition = new ValueCondition()
             {
-                Value = Tasks[1].Values[0],
+                Value = GetOutput("cmd"),
                 ExpectedValue = new AtomicValue() { Value = "quit" }
             };
         }
     }
+    
+    /// <summary>
+    /// Read/write from file
+    /// </summary>
+    public class CommandShellStep04
+    {
+        public CommandShellStep04()
+        {
 
+        }
+    }
+    /*
     public class CommandShellStep04 : CommandShellStep03
     {
         public CommandShellStep04()
         {
-            Tasks[2] = new GeneralTask()
+
+            List<IValue> valueList = new List<IValue>();
+            valueList.AddRange(Values);
+
+            IValue v = null;
+            v = new AtomicValue() { Name = "runProcess", Value = new AtomicProcess() };
+            valueList.Add(v);
+
+            Values = valueList.ToArray();
+ 
+            Tasks[2] = new SendMessageTask()
             {
                 Name = "Add task to container",
                 StartCondition = AtomicProcess.TaskStateCondition(GetTask("Get Command"), RunState.Done),
-                Values = new IValue[] 
+                TargetProcess = new ProcessView() { SourceValue = GetValue("runProcess") }, 
+                Message = new AtomicMessage() 
                 { 
-                    GetTask("Get Command").GetValue("cmd"),
-                    new AtomicValue() { Name = "_process", Value = this }, 
-                    new AtomicValue() { Name = "_task", Value = Undefined.Task }
-                },
-                RunFunction = AddTaskToContainerFunction
+                    Name = "AddTask", 
+                    Parameters = new IParameter[]
+                    {
+                        new ParameterValue() 
+                        { 
+                            Name = "command", 
+                            Value = GetTask("Get Command").GetValue("cmd")
+                        }
+                    }
+                }
             };
 
             ITask task = GetTask("Clear Command");
@@ -164,20 +231,60 @@ namespace WinConsole.CodeSamples
                 ExpectedValue = new AtomicValue() { Value = RunState.Done }
             };
         }
+    }
+
+    class AdhocProcess : AtomicProcess
+    {
+        public AdhocProcess()
+        {
+            List<IEvent> eventList = new List<IEvent>();
+            IEvent evt = null;
+
+            evt = new MessageEvent()
+            {
+                Name = "AddTask",
+                Message = Undefined.Message,
+                Process = this
+            };
+            eventList.Add(evt);
+
+            Events = eventList.ToArray();
+
+            List<ITask> taskList = new List<ITask>();
+            ITask task = null;
+
+            task = new GeneralTask()
+            {
+                Name = "Create Task",
+                StartCondition = GetEvent("AddTask").StartCondition,
+                Values = new IValue[] 
+                { 
+                    ((MessageEvent)evt).Message.GetParameter("command"), 
+                    new AtomicValue() { Name = "newTask", Value = Undefined.Task }
+                },
+                RunFunction = CreateAdHocTask
+            };
+        }
 
         public static void AddTaskToContainerFunction(IRunnable task)
         {
             IProcess process = (IProcess)task.GetValue("_process").Value;
             IContainer container = process.GetContainer(typeof(GeneralTask));
 
-            ITask adhocTask = new WinConsole.Containers.AdhocTask() 
-            { 
-                FunctionText = (string)task.GetValue("cmd").Value 
+            ITask adhocTask = new WinConsole.Containers.AdhocTask()
+            {
+                FunctionText = (string)task.GetValue("cmd").Value
             };
-            
+
             container.AddTask(adhocTask);
             task.GetValue("_task").Value = adhocTask;
         }
-    }
 
+        public static void CreateAdHocTask(IRunnable task)
+        {
+            TextView cmdView = new TextView() { SourceValue = task.GetValue("command") };
+            string cmd = cmdView.Value;
+        }
+    }
+     */ 
 }

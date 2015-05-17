@@ -9,6 +9,7 @@ using System.IO;
 
 namespace WinConsole.Containers
 {
+    /*
     class FilesystemContainer : RunContainer, IDataDefinitionContainer
     {
         public override string ExecuteTask(ITask task)
@@ -60,7 +61,7 @@ namespace WinConsole.Containers
             dirInfo.FullName;
             dirInfo.LastAccessTime;
             dirInfo.LastWriteTime;
-             * */
+             * 
             // dest is only a subdir of current dir
             return "";
         }
@@ -99,7 +100,7 @@ namespace WinConsole.Containers
             fileInfo.LastWriteTime;
             fileInfo.Length;
             fileInfo.Open;
-            */
+            
             // create, // delete, // list
             // file can only be created in a subdir, unless temporary is specified
             return "";
@@ -150,4 +151,5 @@ namespace WinConsole.Containers
             throw new NotImplementedException();
         }
     }
+     * */
 }

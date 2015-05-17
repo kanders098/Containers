@@ -9,7 +9,7 @@ namespace WinConsole.CodeSamples
             Name = "SimpleModel";
             DoneCondition = new ValueCondition()
             {
-                Value = new TaskStateView() { Name = "Process Current State", Task = this },
+                Value = new TaskCurrentStateView() { Name = "Process Current State", Task = this },
                 ExpectedValue = new AtomicValue() { Name = "Task is Running", Value = RunState.Running }
             };
         }
